@@ -119,3 +119,6 @@ export * from './standard/KpiMetricGrid';
 export * from './standard/FilterBar';
 export * from './standard/EmptyState';
 export * from './standard/StandardKanban';
+
+// Auth
+export { default as LoginPage } from './auth/LoginPage';
