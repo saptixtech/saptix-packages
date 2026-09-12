@@ -1,10 +1,23 @@
+
+const COLOR_PRESETS: Record<string, { label: string; oklch: string; fg: string; swatch: string }> = {
+  teal:    { label: "Teal",    oklch: "oklch(0.65 0.18 175)", fg: "oklch(0.985 0 0)",  swatch: "#14b8a6" },
+  cyan:    { label: "Cyan",    oklch: "oklch(0.7 0.15 200)",  fg: "oklch(0.145 0 0)",  swatch: "#06b6d4" },
+  sky:     { label: "Sky",     oklch: "oklch(0.68 0.16 225)", fg: "oklch(0.145 0 0)",  swatch: "#38bdf8" },
+  blue:    { label: "Blue",    oklch: "oklch(0.62 0.18 260)", fg: "oklch(0.985 0 0)",  swatch: "#3b82f6" },
+  indigo:  { label: "Indigo",  oklch: "oklch(0.6 0.2 275)",   fg: "oklch(0.985 0 0)",  swatch: "#6366f1" },
+  violet:  { label: "Violet",  oklch: "oklch(0.65 0.22 300)", fg: "oklch(0.985 0 0)",  swatch: "#8b5cf6" },
+  royal:   { label: "Royal",   oklch: "oklch(0.55 0.22 280)", fg: "oklch(0.985 0 0)",  swatch: "#4f46e5" },
+  rose:    { label: "Rose",    oklch: "oklch(0.65 0.22 15)",  fg: "oklch(0.985 0 0)",  swatch: "#f43f5e" },
+  amber:   { label: "Amber",   oklch: "oklch(0.75 0.18 65)",  fg: "oklch(0.145 0 0)",  swatch: "#f59e0b" },
+  emerald: { label: "Emerald", oklch: "oklch(0.62 0.17 155)", fg: "oklch(0.985 0 0)",  swatch: "#10b981" },
+};
+
 'use client';
 
 import React, { useState, useEffect } from "react";
 import { 
   Sun, Moon, PanelLeft, Layers, Check, ExternalLink,
-  ChevronDown, LogOut, User, ShieldCheck, Activity
-} from "lucide-react";
+  ChevronDown, LogOut, User, ShieldCheck, Activity, Palette } , Palette } from "lucide-react";
 import { LogoSvg } from "./LogoSvg";
 import { SAPTIX_PORTAL_TABS, SAPTIX_APPS } from "./saptix-navigation";
 
@@ -26,6 +39,8 @@ export function SaptixHeader({
   const [isDark, setIsDark] = useState(true);
   const [appsOpen, setAppsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [customizerOpen, setCustomizerOpen] = useState(false);
+  const [currentColor, setCurrentColor] = useState("teal");
   const [currentHost, setCurrentHost] = useState("");
 
   useEffect(() => {
@@ -46,6 +61,28 @@ export function SaptixHeader({
       }
     }
   }, []);
+
+  
+  const applyColor = (colorKey: string) => {
+    setCurrentColor(colorKey);
+    if (typeof window !== "undefined") {
+      const doc = document.documentElement;
+      const preset = COLOR_PRESETS[colorKey] || COLOR_PRESETS.teal;
+      doc.style.setProperty("--primary", preset.oklch);
+      doc.style.setProperty("--primary-foreground", preset.fg);
+      doc.style.setProperty("--ring", preset.oklch);
+      doc.style.setProperty("--brand", preset.oklch);
+      doc.style.setProperty("--brand-foreground", preset.fg);
+      doc.style.setProperty("--sidebar-primary", preset.oklch);
+      doc.style.setProperty("--sidebar-primary-foreground", preset.fg);
+      doc.style.setProperty("--sidebar-ring", preset.oklch);
+      doc.setAttribute("data-color-preset", colorKey);
+      try {
+        const stored = JSON.parse(localStorage.getItem("saptix-theme-config") || "{}");
+        localStorage.setItem("saptix-theme-config", JSON.stringify({ ...stored, color: colorKey }));
+      } catch (e) {}
+    }
+  };
 
   const toggleTheme = () => {
     const nextMode = !isDark ? "dark" : "light";
@@ -160,7 +197,7 @@ export function SaptixHeader({
                 <div className="px-2 py-1.5 border-b border-border/60 mb-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-foreground">Saptix Connected Ecosystem</span>
-                    <span className="text-[10px] text-muted-foreground font-mono">12 Apps</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">21 Ecosystem Apps</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
                     Unified enterprise SSO navigation across active services
@@ -194,6 +231,66 @@ export function SaptixHeader({
                       </a>
                     );
                   })}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        
+        {/* OKLCH Theme Customizer Trigger & Popover */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setCustomizerOpen(!customizerOpen)}
+            className={`flex items-center justify-center size-8 rounded-lg border transition-all cursor-pointer shadow-2xs ${
+              customizerOpen 
+                ? "border-primary bg-primary/15 text-primary" 
+                : "border-border/80 bg-card/60 text-muted-foreground hover:text-foreground hover:bg-accent/80"
+            }`}
+            title="OKLCH Color Palette Presets"
+            aria-label="OKLCH Theme Palette"
+          >
+            <Palette className="size-4 text-primary" />
+          </button>
+
+          {customizerOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setCustomizerOpen(false)} />
+              <div className="absolute right-0 top-full mt-1.5 w-72 rounded-2xl border border-border bg-popover/95 backdrop-blur-xl p-3.5 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 duration-150">
+                <div className="flex items-center justify-between pb-2 border-b border-border/60 mb-2.5">
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground">OKLCH Theme Presets</h4>
+                    <p className="text-[10px] text-muted-foreground">Universal runtime dynamic color tokens</p>
+                  </div>
+                  <button 
+                    onClick={() => setCustomizerOpen(false)} 
+                    className="text-muted-foreground hover:text-foreground text-sm font-bold leading-none p-1"
+                  >
+                    &times;
+                  </button>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {Object.entries(COLOR_PRESETS).map(([key, val]) => (
+                    <button
+                      key={key}
+                      onClick={() => applyColor(key)}
+                      className={`group flex flex-col items-center gap-1 p-1.5 rounded-xl border transition-all ${
+                        currentColor === key 
+                          ? "border-primary bg-primary/15 scale-105" 
+                          : "border-transparent hover:bg-muted/60"
+                      }`}
+                      title={val.label}
+                    >
+                      <span 
+                        className="size-5 rounded-full border border-black/10 shadow-xs group-hover:scale-110 transition-transform" 
+                        style={{ backgroundColor: val.swatch }} 
+                      />
+                      <span className="text-[9px] font-medium text-muted-foreground group-hover:text-foreground truncate">
+                        {val.label}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
             </>

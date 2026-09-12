@@ -53,43 +53,6 @@ interface ResetSampleDataButtonProps {
   onReset: () => void;
 }
 
-export function ResetSampleDataButton({ onReset }: ResetSampleDataButtonProps) {
-  const [confirming, setConfirming] = useState(false);
-
-  if (confirming) {
-    return (
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Reset to sample data?</span>
-        <Button
-          variant="destructive"
-          size="sm"
-          className="h-7 text-xs"
-          onClick={() => { onReset(); setConfirming(false); }}
-        >
-          Reset
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 text-xs"
-          onClick={() => setConfirming(false)}
-        >
-          Cancel
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-      onClick={() => setConfirming(true)}
-    >
-      <DatabaseIcon className="h-3.5 w-3.5" />
-      <RefreshCwIcon className="h-3.5 w-3.5" />
-      Reset Sample Data
-    </Button>
-  );
+export function ResetSampleDataButton(_props?: any) {
+  return null;
 }

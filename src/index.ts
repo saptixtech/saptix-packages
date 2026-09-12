@@ -122,3 +122,6 @@ export * from './standard/StandardKanban';
 
 // Auth
 export { default as LoginPage } from './auth/LoginPage';
+
+export { ThemeCustomizer } from './ThemeCustomizer';
+export default ThemeCustomizer;
