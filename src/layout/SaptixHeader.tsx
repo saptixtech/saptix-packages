@@ -1,3 +1,12 @@
+'use client';
+
+import React, { useState, useEffect } from "react";
+import { 
+  Sun, Moon, PanelLeft, Layers, Check, ExternalLink,
+  ChevronDown, LogOut, User, ShieldCheck, Activity, Palette 
+} from "lucide-react";
+import { LogoSvg } from "./LogoSvg";
+import { SAPTIX_PORTAL_TABS, SAPTIX_APPS } from "./saptix-navigation";
 
 const COLOR_PRESETS: Record<string, { label: string; oklch: string; fg: string; swatch: string }> = {
   teal:    { label: "Teal",    oklch: "oklch(0.65 0.18 175)", fg: "oklch(0.985 0 0)",  swatch: "#14b8a6" },
@@ -11,15 +20,6 @@ const COLOR_PRESETS: Record<string, { label: string; oklch: string; fg: string; 
   amber:   { label: "Amber",   oklch: "oklch(0.75 0.18 65)",  fg: "oklch(0.145 0 0)",  swatch: "#f59e0b" },
   emerald: { label: "Emerald", oklch: "oklch(0.62 0.17 155)", fg: "oklch(0.985 0 0)",  swatch: "#10b981" },
 };
-
-'use client';
-
-import React, { useState, useEffect } from "react";
-import { 
-  Sun, Moon, PanelLeft, Layers, Check, ExternalLink,
-  ChevronDown, LogOut, User, ShieldCheck, Activity, Palette } , Palette } from "lucide-react";
-import { LogoSvg } from "./LogoSvg";
-import { SAPTIX_PORTAL_TABS, SAPTIX_APPS } from "./saptix-navigation";
 
 export interface SaptixHeaderProps {
   appName: string;
@@ -42,116 +42,173 @@ export function SaptixHeader({
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const [currentColor, setCurrentColor] = useState("teal");
   const [currentHost, setCurrentHost] = useState("");
+  const [userEmail, setUserEmail] = useState("admin@saptix.com");
+  const [userName, setUserName] = useState("Sanjay");
 
+  // Single Sign-Out Broadcast Listener
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setCurrentHost(window.location.hostname);
-      try {
-        const stored = localStorage.getItem("saptix-theme-config");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed && parsed.mode) {
-            setIsDark(parsed.mode === "dark");
-          }
-        } else {
-          setIsDark(document.documentElement.classList.contains("dark"));
+    if (typeof window === "undefined") return;
+    setCurrentHost(window.location.hostname);
+
+    try {
+      const storedUser = localStorage.getItem("saptix_user");
+      if (storedUser) {
+        const u = JSON.parse(storedUser);
+        if (u.email) setUserEmail(u.email);
+        if (u.name) setUserName(u.name);
+      }
+    } catch (_) {}
+
+    try {
+      const storedTheme = localStorage.getItem("saptix-theme-config");
+      if (storedTheme) {
+        const parsed = JSON.parse(storedTheme);
+        if (parsed?.mode) {
+          setIsDark(parsed.mode === "dark");
         }
-      } catch (e) {
+      } else {
         setIsDark(document.documentElement.classList.contains("dark"));
       }
+    } catch (_) {
+      setIsDark(document.documentElement.classList.contains("dark"));
     }
+
+    // BroadcastChannel cross-tab logout receiver
+    try {
+      const bc = new BroadcastChannel("saptix_sso");
+      bc.onmessage = (event) => {
+        if (event.data && event.data.type === "LOGOUT") {
+          window.location.href = window.location.origin + "/login?logged_out=1";
+        }
+      };
+      return () => bc.close();
+    } catch (_) {}
   }, []);
 
-  
-  const applyColor = (colorKey: string) => {
-    setCurrentColor(colorKey);
-    if (typeof window !== "undefined") {
-      const doc = document.documentElement;
-      const preset = COLOR_PRESETS[colorKey] || COLOR_PRESETS.teal;
-      doc.style.setProperty("--primary", preset.oklch);
-      doc.style.setProperty("--primary-foreground", preset.fg);
-      doc.style.setProperty("--ring", preset.oklch);
-      doc.style.setProperty("--brand", preset.oklch);
-      doc.style.setProperty("--brand-foreground", preset.fg);
-      doc.style.setProperty("--sidebar-primary", preset.oklch);
-      doc.style.setProperty("--sidebar-primary-foreground", preset.fg);
-      doc.style.setProperty("--sidebar-ring", preset.oklch);
-      doc.setAttribute("data-color-preset", colorKey);
-      try {
-        const stored = JSON.parse(localStorage.getItem("saptix-theme-config") || "{}");
-        localStorage.setItem("saptix-theme-config", JSON.stringify({ ...stored, color: colorKey }));
-      } catch (e) {}
-    }
-  };
-
   const toggleTheme = () => {
-    const nextMode = !isDark ? "dark" : "light";
-    setIsDark(!isDark);
-    if (typeof window !== "undefined") {
-      const doc = document.documentElement;
-      if (nextMode === "dark") {
-        doc.classList.add("dark");
-        doc.classList.remove("light");
-        doc.setAttribute("data-theme", "dark");
-      } else {
-        doc.classList.remove("dark");
-        doc.classList.add("light");
-        doc.setAttribute("data-theme", "light");
-      }
+    const nextDark = !isDark;
+    setIsDark(nextDark);
+    if (typeof document !== "undefined") {
+      document.documentElement.classList.toggle("dark", nextDark);
       try {
-        const existing = localStorage.getItem("saptix-theme-config");
-        const conf = existing ? JSON.parse(existing) : {};
-        conf.mode = nextMode;
-        localStorage.setItem("saptix-theme-config", JSON.stringify(conf));
-        window.dispatchEvent(new Event("saptix-theme-change"));
-      } catch (e) {}
+        const stored = localStorage.getItem("saptix-theme-config");
+        const parsed = stored ? JSON.parse(stored) : {};
+        parsed.mode = nextDark ? "dark" : "light";
+        localStorage.setItem("saptix-theme-config", JSON.stringify(parsed));
+      } catch (_) {}
     }
   };
 
-  const activeSub = subdomain.toLowerCase();
+  const applyColor = (key: string) => {
+    setCurrentColor(key);
+    const preset = COLOR_PRESETS[key];
+    if (preset && typeof document !== "undefined") {
+      document.documentElement.style.setProperty("--primary", preset.oklch);
+      document.documentElement.style.setProperty("--primary-foreground", preset.fg);
+      document.documentElement.style.setProperty("--ring", preset.oklch);
+      document.documentElement.style.setProperty("--brand", preset.oklch);
+      document.documentElement.style.setProperty("--sidebar-primary", preset.oklch);
+      try {
+        const stored = localStorage.getItem("saptix-theme-config");
+        const parsed = stored ? JSON.parse(stored) : {};
+        parsed.color = key;
+        localStorage.setItem("saptix-theme-config", JSON.stringify(parsed));
+      } catch (_) {}
+    }
+  };
+
+  const handleGlobalLogout = () => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("saptix_token");
+        localStorage.removeItem("saptix_user");
+        localStorage.removeItem("saptix_session");
+        localStorage.removeItem("saptix_sso_session");
+        localStorage.removeItem("access_token");
+        sessionStorage.clear();
+      } catch (_) {}
+
+      // Broadcast logout to all open tabs across subdomains
+      try {
+        const bc = new BroadcastChannel("saptix_sso");
+        bc.postMessage({ type: "LOGOUT", timestamp: Date.now() });
+        bc.close();
+      } catch (_) {}
+
+      // Clear cookies on .saptix.tech and localhost
+      const expired = "=; Domain=.saptix.tech; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure";
+      const expiredLocal = "=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+      const cookieNames = ["saptix_token", "saptix_session", "saptix_auth", "saptix_sso_session", "token", "refreshToken"];
+      cookieNames.forEach((name) => {
+        document.cookie = name + expired;
+        document.cookie = name + expiredLocal;
+      });
+
+      const targetRedirect = window.location.origin + "/login?logged_out=1";
+      window.location.href = "https://auth.saptix.tech/api/auth/logout?redirect=" + encodeURIComponent(targetRedirect);
+    }
+  };
+
+  const userInitials = userName
+    ? userName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "SA";
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border bg-background/90 px-3 sm:px-5 lg:px-6 backdrop-blur-xl transition-all select-none">
-      {/* Left: Sidebar Toggle + Brand Logo + App Name */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
-        <button
-          type="button"
-          onClick={onToggleSidebar}
-          className="flex items-center justify-center size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/80 border border-transparent hover:border-border/60 transition-all cursor-pointer shrink-0"
-          title={sidebarCollapsed ? "Expand Sidebar (Ctrl+B)" : "Collapse Sidebar (Ctrl+B)"}
-          aria-label="Toggle Sidebar"
-        >
-          <PanelLeft className="size-4" />
-        </button>
-
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="size-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center p-1 shrink-0">
-            <LogoSvg className="size-full" />
-          </div>
-          <span className="text-sm font-bold tracking-tight text-foreground truncate max-w-[130px] sm:max-w-[190px] md:max-w-[240px]">
-            {appName}
-          </span>
-          {appBadge && (
-            <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-muted text-muted-foreground border border-border/60 shrink-0">
-              {appBadge}
-            </span>
+    <header className="sticky top-0 z-40 w-full h-14 border-b border-border/60 bg-background/80 backdrop-blur-xl transition-colors duration-200">
+      <div className="flex h-full items-center justify-between px-3 md:px-5 gap-3">
+        {/* Left: Sidebar Toggle & Brand */}
+        <div className="flex items-center gap-3 shrink-0">
+          {onToggleSidebar && (
+            <button
+              type="button"
+              onClick={onToggleSidebar}
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all duration-200 cursor-pointer"
+              title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              aria-label="Toggle Sidebar"
+            >
+              <PanelLeft className="size-4.5" />
+            </button>
           )}
-        </div>
-      </div>
 
-      {/* Middle: Universal 9-Stake Quick Portal Tabs (Clean, Scrollable, Non-Colliding) */}
-      <div className="hidden lg:flex items-center justify-center flex-1 min-w-0 px-2 sm:px-4">
-        <nav className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/40 overflow-x-auto scrollbar-none max-w-full">
+          <a href="https://saptix.tech" className="flex items-center gap-2.5 group">
+            <div className="size-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center p-1.5 shadow-xs group-hover:scale-105 transition-transform">
+              <LogoSvg className="size-full" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-bold text-sm tracking-tight text-foreground flex items-center gap-1.5">
+                {appName}
+                {appBadge && (
+                  <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                    {appBadge}
+                  </span>
+                )}
+              </span>
+              <span className="text-[10px] text-muted-foreground/80 font-mono -mt-0.5">
+                {subdomain}.saptix.tech
+              </span>
+            </div>
+          </a>
+        </div>
+
+        {/* Center: Universal Segmented Portal Navigation Tabs */}
+        <nav className="hidden lg:flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/50 backdrop-blur-xs">
           {SAPTIX_PORTAL_TABS.map((tab) => {
-            const isCurrent = activeSub.includes(tab.id) || currentHost.includes(tab.id);
+            const isTabActive =
+              currentHost.includes(tab.id) ||
+              (tab.id === "hub" && (currentHost === "saptix.tech" || currentHost === "www.saptix.tech"));
             return (
               <a
                 key={tab.id}
                 href={tab.href}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all whitespace-nowrap shrink-0 ${
-                  isCurrent
-                    ? "bg-primary text-primary-foreground shadow-xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/70"
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all duration-150 ${
+                  isTabActive
+                    ? "bg-background text-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                 }`}
               >
                 {tab.label}
@@ -159,223 +216,167 @@ export function SaptixHeader({
             );
           })}
         </nav>
-      </div>
 
-      {/* Right: Telemetry Badge + Apps Switcher + Theme Toggle + User SSO Profile */}
-      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        {/* Live System Status Indicator (Adaptive width) */}
-        <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 dark:text-emerald-400 text-[11px] font-medium shrink-0">
-          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span>System: Optimal • 18ms</span>
-        </div>
-        <div 
-          className="hidden md:flex 2xl:hidden items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 dark:text-emerald-400 text-[11px] font-medium shrink-0 cursor-default"
-          title="System: Optimal • 18ms (Saptix Edge Node)"
-        >
-          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span>18ms</span>
-        </div>
+        {/* Right: Ecosystem Apps Dropdown, Theme Switcher & User Menu */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Ecosystem Apps Grid */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setAppsOpen(!appsOpen)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                appsOpen
+                  ? "bg-muted text-foreground border-border"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/70 border-transparent"
+              } cursor-pointer`}
+              title="All Saptix Ecosystem Apps"
+            >
+              <Layers className="size-3.5 text-primary" />
+              <span className="hidden sm:inline">Ecosystem</span>
+              <ChevronDown className="size-3 text-muted-foreground" />
+            </button>
 
-        {/* 12-App Ecosystem Switcher */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setAppsOpen(!appsOpen)}
-            className="flex items-center gap-1.5 h-8 px-2 sm:px-2.5 rounded-lg border border-border bg-card/60 text-xs font-medium text-foreground hover:bg-accent/80 hover:border-border/80 transition-all cursor-pointer shadow-2xs"
-            title="Saptix Enterprise Suite Apps"
-            aria-label="Saptix Ecosystem Apps"
-          >
-            <Layers className="size-3.5 text-primary" />
-            <span className="hidden sm:inline font-semibold">Apps</span>
-            <ChevronDown className="size-3 text-muted-foreground" />
-          </button>
-
-          {appsOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setAppsOpen(false)} />
-              <div className="absolute right-0 top-full mt-1.5 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-popover/95 backdrop-blur-xl p-2.5 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 duration-150">
-                <div className="px-2 py-1.5 border-b border-border/60 mb-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-foreground">Saptix Connected Ecosystem</span>
-                    <span className="text-[10px] text-muted-foreground font-mono">21 Ecosystem Apps</span>
+            {appsOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setAppsOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-2xl p-3 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/60 px-1">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">
+                      Saptix Enterprise Suite
+                    </span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-medium">
+                      21 Integrated Services
+                    </span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Unified enterprise SSO navigation across active services
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5 max-h-80 overflow-y-auto pr-0.5">
-                  {SAPTIX_APPS.map((app) => {
-                    const isCurrent = activeSub.includes(app.sub) || currentHost.includes(app.sub);
-                    return (
+                  <div className="grid grid-cols-2 gap-1.5 max-h-[380px] overflow-y-auto pr-1">
+                    {SAPTIX_APPS.map((app) => (
                       <a
-                        key={app.name}
+                        key={app.sub}
                         href={app.url}
-                        className={`flex items-start gap-2 p-2 rounded-xl border transition-all text-left group ${
-                          isCurrent
-                            ? "bg-primary/15 text-primary border-primary/40 ring-1 ring-primary/25"
-                            : "border-transparent bg-muted/20 hover:bg-muted/60 text-foreground hover:border-border/60"
-                        }`}
+                        className="flex items-start gap-2 p-2 rounded-xl hover:bg-accent/80 transition-colors group"
                       >
-                        <span className="text-sm leading-none p-1 rounded-lg bg-background border border-border/40 shrink-0">
+                        <span className="text-base shrink-0 p-1 rounded-lg bg-background border border-border/40 group-hover:scale-110 transition-transform">
                           {app.icon}
                         </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-xs font-semibold truncate group-hover:text-primary transition-colors">{app.name}</span>
-                            {isCurrent && <Check className="size-3 text-primary shrink-0" />}
-                          </div>
-                          <p className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                            {app.name}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground line-clamp-1">
                             {app.desc}
-                          </p>
+                          </span>
                         </div>
                       </a>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </div>
 
-        
-        {/* OKLCH Theme Customizer Trigger & Popover */}
-        <div className="relative">
+          {/* Theme Palette Customizer */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setCustomizerOpen(!customizerOpen)}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
+              title="Customize Color Theme"
+            >
+              <Palette className="size-4" />
+            </button>
+
+            {customizerOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setCustomizerOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-2xl p-3.5 shadow-2xl z-50">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono block mb-2">
+                    Theme Accent Color
+                  </span>
+                  <div className="grid grid-cols-5 gap-2">
+                    {Object.entries(COLOR_PRESETS).map(([key, preset]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => applyColor(key)}
+                        className={`size-8 rounded-xl border-2 transition-transform hover:scale-110 flex items-center justify-center cursor-pointer ${
+                          currentColor === key ? "border-primary scale-105 shadow-xs" : "border-border/60"
+                        }`}
+                        style={{ backgroundColor: preset.swatch }}
+                        title={preset.label}
+                      >
+                        {currentColor === key && <Check className="size-3.5 text-white stroke-[3]" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Light/Dark Toggle */}
           <button
             type="button"
-            onClick={() => setCustomizerOpen(!customizerOpen)}
-            className={`flex items-center justify-center size-8 rounded-lg border transition-all cursor-pointer shadow-2xs ${
-              customizerOpen 
-                ? "border-primary bg-primary/15 text-primary" 
-                : "border-border/80 bg-card/60 text-muted-foreground hover:text-foreground hover:bg-accent/80"
-            }`}
-            title="OKLCH Color Palette Presets"
-            aria-label="OKLCH Theme Palette"
+            onClick={toggleTheme}
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
+            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            aria-label="Toggle Theme"
           >
-            <Palette className="size-4 text-primary" />
+            {isDark ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4 text-sky-600" />}
           </button>
 
-          {customizerOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setCustomizerOpen(false)} />
-              <div className="absolute right-0 top-full mt-1.5 w-72 rounded-2xl border border-border bg-popover/95 backdrop-blur-xl p-3.5 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 duration-150">
-                <div className="flex items-center justify-between pb-2 border-b border-border/60 mb-2.5">
-                  <div>
-                    <h4 className="text-xs font-bold text-foreground">OKLCH Theme Presets</h4>
-                    <p className="text-[10px] text-muted-foreground">Universal runtime dynamic color tokens</p>
+          {/* User Profile & Single Sign-Out Menu */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="flex items-center gap-2 pl-2 pr-1.5 py-1 rounded-xl border border-border/70 hover:bg-muted/80 transition-all duration-150 cursor-pointer group"
+            >
+              <div className="size-7 rounded-lg bg-primary/20 text-primary font-bold text-xs flex items-center justify-center border border-primary/30">
+                {userInitials}
+              </div>
+              <ChevronDown className="size-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+            </button>
+
+            {userMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-2xl p-2 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 duration-150">
+                  <div className="px-3 py-2 border-b border-border/60 mb-1">
+                    <span className="text-xs font-semibold text-foreground block truncate">{userName}</span>
+                    <span className="text-[11px] text-muted-foreground block truncate">{userEmail}</span>
+                    <span className="inline-block mt-1 text-[9px] font-mono font-medium px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                      Enterprise SSO Active
+                    </span>
                   </div>
-                  <button 
-                    onClick={() => setCustomizerOpen(false)} 
-                    className="text-muted-foreground hover:text-foreground text-sm font-bold leading-none p-1"
+                  <div className="space-y-0.5">
+                    <a
+                      href="https://account.saptix.tech"
+                      className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-foreground rounded-lg hover:bg-muted transition-colors"
+                    >
+                      <User className="size-3.5 text-muted-foreground" />
+                      <span>Account & Profile</span>
+                    </a>
+                    <a
+                      href="https://account.saptix.tech"
+                      className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-foreground rounded-lg hover:bg-muted transition-colors"
+                    >
+                      <ShieldCheck className="size-3.5 text-muted-foreground" />
+                      <span>Security & API Keys</span>
+                    </a>
+                  </div>
+                  <div className="my-1.5 h-px bg-border/60" />
+                  <button
+                    type="button"
+                    onClick={handleGlobalLogout}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-destructive cursor-pointer rounded-lg hover:bg-destructive/10 transition-colors text-left font-medium"
                   >
-                    &times;
+                    <LogOut className="size-3.5" />
+                    <span>Sign Out (Global SSO)</span>
                   </button>
                 </div>
-                <div className="grid grid-cols-5 gap-2">
-                  {Object.entries(COLOR_PRESETS).map(([key, val]) => (
-                    <button
-                      key={key}
-                      onClick={() => applyColor(key)}
-                      className={`group flex flex-col items-center gap-1 p-1.5 rounded-xl border transition-all ${
-                        currentColor === key 
-                          ? "border-primary bg-primary/15 scale-105" 
-                          : "border-transparent hover:bg-muted/60"
-                      }`}
-                      title={val.label}
-                    >
-                      <span 
-                        className="size-5 rounded-full border border-black/10 shadow-xs group-hover:scale-110 transition-transform" 
-                        style={{ backgroundColor: val.swatch }} 
-                      />
-                      <span className="text-[9px] font-medium text-muted-foreground group-hover:text-foreground truncate">
-                        {val.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Theme Toggle Button */}
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="flex items-center justify-center size-8 rounded-lg border border-border/80 bg-card/60 text-muted-foreground hover:text-foreground hover:bg-accent/80 transition-all cursor-pointer shadow-2xs"
-          title={`Switch to ${isDark ? "Light" : "Dark"} Mode`}
-          aria-label="Toggle Theme"
-        >
-          {isDark ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4 text-indigo-400" />}
-        </button>
-
-        {/* User SSO Profile Menu */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center justify-center size-8 rounded-full border border-border/80 bg-primary/10 hover:ring-2 hover:ring-primary/40 transition-all cursor-pointer focus:outline-none shrink-0"
-            aria-label="User SSO Menu"
-            title="Saptix SSO Profile"
-          >
-            <span className="text-xs font-bold text-primary">SA</span>
-          </button>
-
-          {userMenuOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1.5 w-60 rounded-2xl border border-border bg-popover/95 backdrop-blur-xl p-2 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 duration-150">
-                <div className="px-2.5 py-2 border-b border-border/60 mb-1">
-                  <p className="text-xs font-semibold text-foreground">Admin Saptix</p>
-                  <p className="text-[10px] text-muted-foreground truncate font-mono">admin@saptix.tech</p>
-                  <span className="inline-block mt-1 text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono">Enterprise SSO Active</span>
-                </div>
-                <div className="space-y-0.5">
-                  <a
-                    href="https://account.saptix.tech"
-                    className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-foreground cursor-pointer rounded-lg hover:bg-muted transition-colors"
-                  >
-                    <User className="size-3.5 text-muted-foreground" />
-                    <span>Account & Profile</span>
-                  </a>
-                  <a
-                    href="https://account.saptix.tech"
-                    className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-foreground cursor-pointer rounded-lg hover:bg-muted transition-colors"
-                  >
-                    <ShieldCheck className="size-3.5 text-muted-foreground" />
-                    <span>Security & API Keys</span>
-                  </a>
-                </div>
-                <div className="my-1.5 h-px bg-border/60" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (typeof window !== "undefined") {
-                      try {
-                        localStorage.removeItem("saptix_token");
-                        localStorage.removeItem("saptix_user");
-                        localStorage.removeItem("saptix_session");
-                        localStorage.removeItem("saptix_sso_session");
-                        localStorage.removeItem("access_token");
-                        sessionStorage.clear();
-                      } catch (_) {}
-                      const expired = '=; Domain=.saptix.tech; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-                      document.cookie = 'saptix_token' + expired;
-                      document.cookie = 'saptix_session' + expired;
-                      document.cookie = 'saptix_sso_session' + expired;
-                      document.cookie = 'saptix_auth' + expired;
-                      document.cookie = 'token' + expired;
-                      const targetRedirect = window.location.origin + '/login?logged_out=1';
-                      window.location.href = 'https://auth.saptix.tech/api/auth/logout?redirect=' + encodeURIComponent(targetRedirect);
-                    }
-                  }}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-destructive cursor-pointer rounded-lg hover:bg-destructive/10 transition-colors text-left"
-                >
-                  <LogOut className="size-3.5" />
-                  <span>Sign Out</span>
-                </button>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </header>
