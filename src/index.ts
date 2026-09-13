@@ -129,3 +129,6 @@ export default ThemeCustomizer;
 export * from './ai';
 
 export * from './profile';
+
+export * from './notifications/useSaptixNotifications';
+export * from './notifications/SaptixNotificationDropdown';

@@ -3,12 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { 
   Sun, Moon, PanelLeft, Layers, Check, ExternalLink,
-  ChevronDown, LogOut, User, ShieldCheck, Activity, Palette, Search
+  ChevronDown, LogOut, User, ShieldCheck, Activity, Palette, Search, Bell
 } from "lucide-react";
 import { LogoSvg } from "./LogoSvg";
 import { SAPTIX_PORTAL_TABS, SAPTIX_APPS } from "./saptix-navigation";
 import { GlobalCommandPalette } from "./GlobalCommandPalette";
 import { SaptixProfileSettingsModal } from "./SaptixProfileSettingsModal";
+import { useSaptixNotifications } from "./useSaptixNotifications";
+import { SaptixNotificationDropdown } from "./SaptixNotificationDropdown";
 
 const COLOR_PRESETS: Record<string, { label: string; oklch: string; fg: string; swatch: string }> = {
   teal:    { label: "Teal",    oklch: "oklch(0.65 0.18 175)", fg: "oklch(0.985 0 0)",  swatch: "#14b8a6" },
@@ -43,6 +45,8 @@ export function SaptixHeader({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const { notifications, unreadCount, markAsRead, markAllAsRead, dismiss } = useSaptixNotifications();
   const [currentColor, setCurrentColor] = useState("teal");
   const [currentHost, setCurrentHost] = useState("");
   const [userEmail, setUserEmail] = useState("admin@saptix.com");
@@ -370,6 +374,45 @@ export function SaptixHeader({
             >
               {isDark ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4 text-indigo-400" />}
             </button>
+
+            {/* Universal Notification Center */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setNotificationsOpen(!notificationsOpen);
+                  setUserMenuOpen(false);
+                  setAppsOpen(false);
+                  setCustomizerOpen(false);
+                }}
+                className={`p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150 cursor-pointer active:scale-[0.96] relative ${
+                  notificationsOpen ? "bg-muted text-foreground" : ""
+                }`}
+                title="Notifications"
+              >
+                <Bell className="size-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 flex items-center justify-center min-w-[15px] h-3.5 px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-bold leading-none shadow-xs animate-in zoom-in-50 duration-150">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <SaptixNotificationDropdown
+                open={notificationsOpen}
+                onClose={() => setNotificationsOpen(false)}
+                notifications={notifications}
+                unreadCount={unreadCount}
+                onMarkAsRead={markAsRead}
+                onMarkAllAsRead={markAllAsRead}
+                onDismiss={dismiss}
+                onOpenSettings={() => {
+                  setNotificationsOpen(false);
+                  setProfileModalOpen(true);
+                }}
+              />
+            </div>
+
 
             {/* User Profile & Single Sign-Out Menu */}
             <div className="relative">
