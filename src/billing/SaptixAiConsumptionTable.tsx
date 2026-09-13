@@ -74,7 +74,7 @@ function getStakeBadge(stake: string): { icon: React.ReactNode; label: string } 
   if (s === 'spectra') return { icon: <Activity className="size-3.5 text-emerald-400" />, label: 'Spectra Engine' };
   if (s === 'lead') return { icon: <Target className="size-3.5 text-rose-400" />, label: 'Lead OS' };
   if (s === 'gate') return { icon: <Sparkles className="size-3.5 text-purple-400" />, label: 'AI Gateway' };
-  return { icon: <Layers className="size-3.5 text-muted-foreground" />, label: stake };
+  return { icon: <Layers className="size-3.5 text-muted-foreground" />, label: stake.toUpperCase() };
 }
 
 export function SaptixAiConsumptionTable({
@@ -87,7 +87,9 @@ export function SaptixAiConsumptionTable({
   const [selectedMonth, setSelectedMonth] = useState('2026-09');
   const [selectedStake, setSelectedStake] = useState('all');
   const [selectedModel, setSelectedModel] = useState('all');
-  const [availableMonths, setAvailableMonths] = useState<string[]>(['2026-09', '2026-08']);
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+  const [availableStakes, setAvailableStakes] = useState<string[]>([]);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [summary, setSummary] = useState<AiConsumptionSummary>({
     total_tokens: 0, prompt_tokens: 0, completion_tokens: 0,
     estimated_cost: 0, requests_count: 0, active_models_count: 0, active_stakes_count: 0
@@ -114,8 +116,14 @@ export function SaptixAiConsumptionTable({
         if (data.summary) setSummary(data.summary);
         if (data.breakdown) setBreakdown(data.breakdown);
         if (data.records) setBreakdown(data.records);
-        if (data.available_months && data.available_months.length > 0) {
+        if (data.available_months && Array.isArray(data.available_months)) {
           setAvailableMonths(data.available_months);
+        }
+        if (data.available_stakes && Array.isArray(data.available_stakes)) {
+          setAvailableStakes(data.available_stakes);
+        }
+        if (data.available_models && Array.isArray(data.available_models)) {
+          setAvailableModels(data.available_models);
         }
       }
     } catch (_) {
@@ -172,7 +180,7 @@ export function SaptixAiConsumptionTable({
           </div>
         </div>
 
-        {/* Filter Controls */}
+        {/* Filter Controls (100% PostgreSQL-backed) */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Month Selector */}
           <div className="flex items-center gap-1.5 bg-muted/60 px-2.5 py-1.5 rounded-xl border border-border/60 text-xs">
@@ -182,9 +190,12 @@ export function SaptixAiConsumptionTable({
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
             >
+              {availableMonths.length === 0 && (
+                <option value={selectedMonth} className="bg-popover text-foreground">{selectedMonth}</option>
+              )}
               {availableMonths.map(m => (
                 <option key={m} value={m} className="bg-popover text-foreground">
-                  {m === '2026-09' ? 'September 2026 (Current)' : m === '2026-08' ? 'August 2026' : m}
+                  {m}
                 </option>
               ))}
             </select>
@@ -199,12 +210,28 @@ export function SaptixAiConsumptionTable({
               className="bg-transparent text-xs font-medium text-foreground focus:outline-none cursor-pointer"
             >
               <option value="all" className="bg-popover text-foreground">All Stakes</option>
-              <option value="chat" className="bg-popover text-foreground">Chat</option>
-              <option value="modeler" className="bg-popover text-foreground">Modeler</option>
-              <option value="agent" className="bg-popover text-foreground">Agent Hub</option>
-              <option value="spectra" className="bg-popover text-foreground">Spectra</option>
-              <option value="lead" className="bg-popover text-foreground">Lead OS</option>
-              <option value="gate" className="bg-popover text-foreground">AI Gateway</option>
+              {availableStakes.map(s => (
+                <option key={s} value={s} className="bg-popover text-foreground">
+                  {s.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Model Filter */}
+          <div className="flex items-center gap-1.5 bg-muted/60 px-2.5 py-1.5 rounded-xl border border-border/60 text-xs">
+            <Bot className="size-3 text-muted-foreground shrink-0" />
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="bg-transparent text-xs font-medium text-foreground focus:outline-none cursor-pointer"
+            >
+              <option value="all" className="bg-popover text-foreground">All Models</option>
+              {availableModels.map(m => (
+                <option key={m} value={m} className="bg-popover text-foreground">
+                  {m}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -214,7 +241,7 @@ export function SaptixAiConsumptionTable({
             onClick={fetchData}
             disabled={loading}
             className="p-2 rounded-xl bg-muted/60 hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            title="Refresh Token Data"
+            title="Refresh Token Data from PostgreSQL"
           >
             <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -278,90 +305,96 @@ export function SaptixAiConsumptionTable({
             {(summary.prompt_tokens / 1000).toFixed(0)}k in / {(summary.completion_tokens / 1000).toFixed(0)}k out
           </div>
           <div className="w-full bg-muted/60 h-1.5 rounded-full overflow-hidden mt-1.5 flex">
-            <div
-              className="bg-blue-500 h-full"
-              style={{ width: `${summary.total_tokens > 0 ? (summary.prompt_tokens / summary.total_tokens) * 100 : 70}%` }}
+            <div 
+              className="bg-blue-500 h-full" 
+              style={{ width: `${summary.total_tokens ? Math.min(100, (summary.prompt_tokens / summary.total_tokens) * 100) : 50}%` }} 
             />
-            <div
-              className="bg-emerald-500 h-full"
-              style={{ width: `${summary.total_tokens > 0 ? (summary.completion_tokens / summary.total_tokens) * 100 : 30}%` }}
+            <div 
+              className="bg-emerald-500 h-full" 
+              style={{ width: `${summary.total_tokens ? Math.min(100, (summary.completion_tokens / summary.total_tokens) * 100) : 50}%` }} 
             />
           </div>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-card border border-border/80 shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground text-xs mb-1">
-            <span>Billing Pipeline Stage</span>
-            <ShieldCheck className="size-3.5 text-amber-500" />
+            <span>Quota & Active Models</span>
+            <ShieldCheck className="size-3.5 text-purple-400" />
           </div>
-          <div className="flex items-center gap-1.5 mt-1">
-            {summary.estimated_cost > 0 ? (
-              <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                Stage 1: Admin Counted
-              </span>
-            ) : (
-              <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                Stage 2: Moved to Billing
-              </span>
-            )}
+          <div className="text-xl font-bold text-foreground tracking-tight">
+            {summary.active_models_count} <span className="text-xs font-normal text-muted-foreground">models across</span> {summary.active_stakes_count} <span className="text-xs font-normal text-muted-foreground">stakes</span>
           </div>
-          <div className="text-[10px] text-muted-foreground mt-1 truncate">
-            Owner: account.saptix.tech
+          <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1 font-mono">
+            <span>Plan: {summary.plan_name || 'Enterprise'}</span>
           </div>
         </div>
       </div>
 
-      {/* Main Table */}
-      <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-xs">
+      {/* Main Consumption Breakdown Table */}
+      <div className="bg-card rounded-2xl border border-border/80 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-border/80 bg-muted/40 text-muted-foreground font-semibold">
-                <th className="py-3 px-4">Application / Stake</th>
+              <tr className="border-b border-border/80 bg-muted/40 text-muted-foreground font-medium">
+                {isAdmin && <th className="py-3 px-4">Organization</th>}
+                <th className="py-3 px-4">Saptix Stake</th>
                 <th className="py-3 px-4">AI Model</th>
-                <th className="py-3 px-4">Requests</th>
-                <th className="py-3 px-4">Prompt Tokens</th>
-                <th className="py-3 px-4">Output Tokens</th>
-                <th className="py-3 px-4">Total Tokens</th>
-                <th className="py-3 px-4">Est. Cost</th>
-                <th className="py-3 px-4">Billing Status</th>
+                <th className="py-3 px-4 text-right">Requests</th>
+                <th className="py-3 px-4 text-right">Prompt Tokens</th>
+                <th className="py-3 px-4 text-right">Completion Tokens</th>
+                <th className="py-3 px-4 text-right font-bold text-foreground">Total Tokens</th>
+                <th className="py-3 px-4 text-right">Est. Cost (USD)</th>
+                <th className="py-3 px-4">Billing Pipeline Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/40">
-              {filteredItems.length === 0 ? (
+            <tbody className="divide-y divide-border/60">
+              {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-muted-foreground">
-                    No consumption records found for the selected filters.
+                  <td colSpan={isAdmin ? 9 : 8} className="py-12 text-center text-muted-foreground">
+                    <RefreshCw className="size-5 animate-spin mx-auto mb-2 text-primary" />
+                    <span>Loading verified consumption records from PostgreSQL...</span>
+                  </td>
+                </tr>
+              ) : filteredItems.length === 0 ? (
+                <tr>
+                  <td colSpan={isAdmin ? 9 : 8} className="py-12 text-center text-muted-foreground">
+                    No consumption events recorded for {selectedMonth}.
                   </td>
                 </tr>
               ) : (
                 filteredItems.map((item) => {
+                  const prompt = typeof item.prompt_tokens === 'number' ? item.prompt_tokens : parseInt(item.prompt_tokens, 10) || 0;
+                  const completion = typeof item.completion_tokens === 'number' ? item.completion_tokens : parseInt(item.completion_tokens, 10) || 0;
+                  const total = typeof item.total_tokens === 'number' ? item.total_tokens : parseInt(item.total_tokens, 10) || 0;
+                  const cost = typeof item.estimated_cost === 'number' ? item.estimated_cost : parseFloat(item.estimated_cost) || 0;
+                  const tag = getProviderTag(item.model);
                   const stakeInfo = getStakeBadge(item.stake);
-                  const prov = getProviderTag(item.model);
-                  const total = parseInt(String(item.total_tokens), 10) || 0;
-                  const prompt = parseInt(String(item.prompt_tokens), 10) || 0;
-                  const completion = parseInt(String(item.completion_tokens), 10) || 0;
-                  const cost = parseFloat(String(item.estimated_cost)) || 0;
 
                   return (
-                    <tr key={item.id || `${item.stake}-${item.model}`} className="hover:bg-muted/30 transition-colors">
+                    <tr key={item.id} className="hover:bg-muted/30 transition-colors">
+                      {/* Organization (Admin only) */}
+                      {isAdmin && (
+                        <td className="py-3 px-4 font-medium text-foreground">
+                          <div>{item.organization_name || 'SapTix Core'}</div>
+                          <div className="text-[10px] text-muted-foreground font-mono">{item.organization_id?.slice(0, 8)}...</div>
+                        </td>
+                      )}
+
                       {/* Stake */}
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1 rounded-lg bg-background border border-border/60 shrink-0">
-                            {stakeInfo.icon}
-                          </div>
-                          <span className="font-semibold text-foreground">{stakeInfo.label}</span>
+                        <div className="flex items-center gap-1.5 font-medium text-foreground">
+                          {stakeInfo.icon}
+                          <span>{stakeInfo.label}</span>
                         </div>
                       </td>
 
-                      {/* AI Model */}
+                      {/* Model with provider badge */}
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border ${prov.bg} ${prov.text}`}>
-                            {prov.label}
+                        <div className="flex items-center gap-2">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${tag.bg} ${tag.text}`}>
+                            {tag.label}
                           </span>
-                          <span className="font-mono text-foreground font-medium">{item.model}</span>
+                          <span className="font-mono text-xs text-foreground">{item.model}</span>
                         </div>
                       </td>
 
@@ -370,12 +403,12 @@ export function SaptixAiConsumptionTable({
                         {item.requests_count?.toLocaleString() || 1}
                       </td>
 
-                      {/* Prompt */}
+                      {/* Prompt Tokens */}
                       <td className="py-3 px-4 font-mono text-muted-foreground">
                         {prompt.toLocaleString()}
                       </td>
 
-                      {/* Output */}
+                      {/* Completion Tokens */}
                       <td className="py-3 px-4 font-mono text-muted-foreground">
                         {completion.toLocaleString()}
                       </td>
