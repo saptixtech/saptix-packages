@@ -274,6 +274,7 @@ export const SAPTIX_PORTAL_TABS: SaptixPortalTab[] = [
   { id: 'spectra', label: 'Spectra', href: 'https://spectra.saptix.tech' },
   { id: 'agent', label: 'Agent', href: 'https://agent.saptix.tech' },
   { id: 'ui', label: 'UI Suite', href: 'https://ui.saptix.tech' },
+  { id: 'gate', label: 'AI Gateway', href: 'https://gate.saptix.tech' },
 ];
 
 export const SAPTIX_APPS: SaptixAppDef[] = [
@@ -287,6 +288,7 @@ export const SAPTIX_APPS: SaptixAppDef[] = [
   { name: 'Automate RPA', sub: 'automate', desc: 'Process & workflow automation', url: 'https://automate.saptix.tech', icon: '⚙️' },
   { name: 'Lead OS', sub: 'lead', desc: 'Enterprise CRM & pipeline', url: 'https://lead.saptix.tech', icon: '⚡' },
   { name: 'UI Suite', sub: 'ui', desc: 'Design system & component lab', url: 'https://ui.saptix.tech', icon: '🎨' },
+  { name: 'AI Gateway', sub: 'gate', desc: 'Unified LLM & Model Router', url: 'https://gate.saptix.tech', icon: '⚡' },
   { name: 'Transformer', sub: 'transformer', desc: 'ABAP code transformer', url: 'https://transformer.saptix.tech', icon: '🔄' },
   { name: 'DataSafe', sub: 'datasafe', desc: 'Cryptographic data masking', url: 'https://datasafe.saptix.tech', icon: '🔒' },
   { name: 'Annotator', sub: 'annotator', desc: 'CDS & OData annotation studio', url: 'https://annotator.saptix.tech', icon: '📝' },
