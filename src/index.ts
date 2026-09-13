@@ -127,3 +127,5 @@ export { ThemeCustomizer } from './ThemeCustomizer';
 export default ThemeCustomizer;
 
 export * from './ai';
+
+export * from './profile';

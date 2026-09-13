@@ -8,6 +8,7 @@ import {
 import { LogoSvg } from "./LogoSvg";
 import { SAPTIX_PORTAL_TABS, SAPTIX_APPS } from "./saptix-navigation";
 import { GlobalCommandPalette } from "./GlobalCommandPalette";
+import { SaptixProfileSettingsModal } from "./SaptixProfileSettingsModal";
 
 const COLOR_PRESETS: Record<string, { label: string; oklch: string; fg: string; swatch: string }> = {
   teal:    { label: "Teal",    oklch: "oklch(0.65 0.18 175)", fg: "oklch(0.985 0 0)",  swatch: "#14b8a6" },
@@ -405,12 +406,24 @@ export function SaptixHeader({
                       </div>
                     </div>
 
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        setProfileModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-foreground hover:bg-muted/70 transition-colors cursor-pointer text-left font-medium"
+                    >
+                      <User className="size-3.5 text-primary" />
+                      Profile & Settings
+                    </button>
+
                     <a
                       href="https://account.saptix.tech"
                       className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-foreground hover:bg-muted/70 transition-colors"
                     >
-                      <User className="size-3.5 text-muted-foreground" />
-                      Manage Account & Security
+                      <Shield className="size-3.5 text-muted-foreground" />
+                      Account & Security Portal
                     </a>
 
                     <a
@@ -452,6 +465,12 @@ export function SaptixHeader({
         onCycleColor={cycleColor}
         onLogout={handleGlobalLogout}
         appName={appName}
+      />
+
+      {/* Universal Ecosystem Profile & User Settings Modal (auth.saptix.tech) */}
+      <SaptixProfileSettingsModal
+        open={profileModalOpen}
+        onOpenChange={setProfileModalOpen}
       />
     </>
   );
