@@ -1,12 +1,13 @@
 'use client'
 
+import * as React from 'react'
 import { Toggle as TogglePrimitive } from '@base-ui/react/toggle'
 import { cva, type VariantProps } from 'class-variance-authority'
 
 import { cn } from '@/lib/utils'
 
 const toggleVariants = cva(
-  "group/toggle hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 aria-pressed:bg-muted dark:aria-invalid:ring-destructive/40 inline-flex items-center justify-center gap-1 rounded-md text-sm font-medium whitespace-nowrap transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/toggle hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-primary/40 focus-visible:ring-offset-2 aria-invalid:border-destructive aria-invalid:ring-destructive/20 aria-pressed:bg-primary/15 aria-pressed:text-primary aria-pressed:border-primary/30 aria-pressed:shadow-inner dark:aria-invalid:ring-destructive/40 inline-flex items-center justify-center gap-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-all duration-150 outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.97] cursor-pointer [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

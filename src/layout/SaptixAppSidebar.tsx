@@ -52,7 +52,7 @@ export function SaptixAppSidebar({
       {/* Brand Header */}
       <div className={`flex items-center h-14 border-b border-border/60 px-3 shrink-0 ${collapsed ? "justify-center" : "justify-between"}`}>
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="size-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center p-1.5 shrink-0 shadow-xs">
+          <div className="size-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center p-1.5 shrink-0 shadow-xs hover:scale-105 transition-transform">
             <LogoSvg className="size-full" />
           </div>
           {!collapsed && (
@@ -74,7 +74,7 @@ export function SaptixAppSidebar({
           <button
             type="button"
             onClick={onCloseMobile}
-            className="md:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+            className="md:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted active:scale-[0.96] transition-transform"
             aria-label="Close Sidebar"
           >
             <PanelLeftClose className="size-4" />
@@ -100,7 +100,7 @@ export function SaptixAppSidebar({
                 const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
                 const isExternal = item.isExternal || item.external || item.href.startsWith("http");
 
-                const linkClasses = `relative flex items-center gap-3 px-2.5 py-2 rounded-xl text-xs font-medium transition-all duration-200 group cursor-pointer ${
+                const linkClasses = `relative flex items-center gap-3 px-2.5 py-2 rounded-xl text-xs font-medium transition-all duration-150 group cursor-pointer active:scale-[0.98] ${
                   active
                     ? "bg-primary/15 text-primary font-semibold border border-primary/25 shadow-xs before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:bg-primary before:rounded-r-full"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/70 hover:translate-x-0.5"
@@ -108,7 +108,7 @@ export function SaptixAppSidebar({
 
                 const content = (
                   <>
-                    <Icon className={`size-4 shrink-0 transition-transform duration-200 ${active ? "text-primary scale-105" : "text-muted-foreground group-hover:text-foreground group-hover:scale-110"}`} />
+                    <Icon className={`size-4 shrink-0 transition-transform duration-150 ${active ? "text-primary scale-105" : "text-muted-foreground group-hover:text-foreground group-hover:scale-110"}`} />
                     {!collapsed && (
                       <>
                         <span className="truncate flex-1">{item.label}</span>
@@ -127,9 +127,9 @@ export function SaptixAppSidebar({
                       </>
                     )}
 
-                    {/* Collapsed Tooltip Hover with High Z-Index */}
+                    {/* Relative Tooltip for Collapsed Sidebar: Aligns with item regardless of scroll */}
                     {collapsed && (
-                      <div className="fixed left-[76px] px-2.5 py-1 rounded-lg bg-popover text-popover-foreground text-xs font-medium border border-border shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 z-[100] whitespace-nowrap">
+                      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg bg-popover text-popover-foreground text-xs font-medium border border-border shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 z-[100] whitespace-nowrap">
                         {item.label}
                         {item.badge && <span className="ml-1.5 text-primary">({item.badge})</span>}
                       </div>
@@ -171,7 +171,7 @@ export function SaptixAppSidebar({
         <button
           type="button"
           onClick={onToggleCollapse}
-          className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer ${
+          className={`w-full flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all duration-150 cursor-pointer active:scale-[0.96] ${
             collapsed ? "justify-center" : ""
           }`}
           title="Toggle Sidebar (Ctrl+B)"
@@ -204,7 +204,7 @@ export function SaptixAppSidebar({
 
       {/* Desktop Sticky Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full z-20 hidden md:block transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        className={`fixed top-0 left-0 h-full z-30 hidden md:block transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
           collapsed ? "w-[68px]" : "w-64"
         }`}
       >
@@ -213,5 +213,3 @@ export function SaptixAppSidebar({
     </>
   );
 }
-
-export default SaptixAppSidebar;

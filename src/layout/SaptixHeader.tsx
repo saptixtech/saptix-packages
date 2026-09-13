@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from "react";
 import { 
   Sun, Moon, PanelLeft, Layers, Check, ExternalLink,
-  ChevronDown, LogOut, User, ShieldCheck, Activity, Palette 
+  ChevronDown, LogOut, User, ShieldCheck, Activity, Palette, Search
 } from "lucide-react";
 import { LogoSvg } from "./LogoSvg";
 import { SAPTIX_PORTAL_TABS, SAPTIX_APPS } from "./saptix-navigation";
+import { GlobalCommandPalette } from "./GlobalCommandPalette";
 
 const COLOR_PRESETS: Record<string, { label: string; oklch: string; fg: string; swatch: string }> = {
   teal:    { label: "Teal",    oklch: "oklch(0.65 0.18 175)", fg: "oklch(0.985 0 0)",  swatch: "#14b8a6" },
@@ -40,6 +41,7 @@ export function SaptixHeader({
   const [appsOpen, setAppsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [customizerOpen, setCustomizerOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
   const [currentColor, setCurrentColor] = useState("teal");
   const [currentHost, setCurrentHost] = useState("");
   const [userEmail, setUserEmail] = useState("admin@saptix.com");
@@ -65,6 +67,9 @@ export function SaptixHeader({
         const parsed = JSON.parse(storedTheme);
         if (parsed?.mode) {
           setIsDark(parsed.mode === "dark");
+        }
+        if (parsed?.primaryColor && COLOR_PRESETS[parsed.primaryColor]) {
+          setCurrentColor(parsed.primaryColor);
         }
       } else {
         setIsDark(document.documentElement.classList.contains("dark"));
@@ -100,21 +105,27 @@ export function SaptixHeader({
   };
 
   const applyColor = (key: string) => {
-    setCurrentColor(key);
     const preset = COLOR_PRESETS[key];
-    if (preset && typeof document !== "undefined") {
+    if (!preset) return;
+    setCurrentColor(key);
+    if (typeof document !== "undefined") {
       document.documentElement.style.setProperty("--primary", preset.oklch);
       document.documentElement.style.setProperty("--primary-foreground", preset.fg);
       document.documentElement.style.setProperty("--ring", preset.oklch);
-      document.documentElement.style.setProperty("--brand", preset.oklch);
-      document.documentElement.style.setProperty("--sidebar-primary", preset.oklch);
       try {
         const stored = localStorage.getItem("saptix-theme-config");
         const parsed = stored ? JSON.parse(stored) : {};
-        parsed.color = key;
+        parsed.primaryColor = key;
         localStorage.setItem("saptix-theme-config", JSON.stringify(parsed));
       } catch (_) {}
     }
+  };
+
+  const cycleColor = () => {
+    const keys = Object.keys(COLOR_PRESETS);
+    const currIdx = keys.indexOf(currentColor);
+    const nextKey = keys[(currIdx + 1) % keys.length];
+    applyColor(nextKey);
   };
 
   const handleGlobalLogout = () => {
@@ -159,28 +170,26 @@ export function SaptixHeader({
     : "SA";
 
   return (
-    <header className="sticky top-0 z-40 w-full h-14 border-b border-border/60 bg-background/80 backdrop-blur-xl transition-colors duration-200">
-      <div className="flex h-full items-center justify-between px-3 md:px-5 gap-3">
-        {/* Left: Sidebar Toggle & Brand */}
-        <div className="flex items-center gap-3 shrink-0">
-          {onToggleSidebar && (
-            <button
-              type="button"
-              onClick={onToggleSidebar}
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all duration-200 cursor-pointer"
-              title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-              aria-label="Toggle Sidebar"
-            >
-              <PanelLeft className="size-4.5" />
-            </button>
-          )}
+    <>
+      <header className="sticky top-0 z-40 w-full h-14 border-b border-border/60 bg-background/80 backdrop-blur-xl transition-colors duration-200">
+        <div className="flex h-full items-center justify-between px-3 md:px-5 gap-2 sm:gap-3">
+          {/* Left: Sidebar Toggle & Desktop Breadcrumbs Context */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {onToggleSidebar && (
+              <button
+                type="button"
+                onClick={onToggleSidebar}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all duration-150 cursor-pointer active:scale-[0.96]"
+                title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                aria-label="Toggle Sidebar"
+              >
+                <PanelLeft className="size-4.5" />
+              </button>
+            )}
 
-          <a href="https://saptix.tech" className="flex items-center gap-2.5 group">
-            <div className="size-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center p-1.5 shadow-xs group-hover:scale-105 transition-transform">
-              <LogoSvg className="size-full" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-bold text-sm tracking-tight text-foreground flex items-center gap-1.5">
+            {/* Desktop Breadcrumbs: Eliminates duplicate brand logo since sidebar owns brand */}
+            <div className="hidden md:flex items-center gap-2 text-xs">
+              <span className="font-semibold text-foreground tracking-tight flex items-center gap-1.5">
                 {appName}
                 {appBadge && (
                   <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
@@ -188,199 +197,262 @@ export function SaptixHeader({
                   </span>
                 )}
               </span>
-              <span className="text-[10px] text-muted-foreground/80 font-mono -mt-0.5">
-                {subdomain}.saptix.tech
+              <span className="text-muted-foreground/40">/</span>
+              <span className="text-muted-foreground font-mono text-[11px]">
+                {subdomain || "Portal"}
               </span>
             </div>
-          </a>
-        </div>
 
-        {/* Center: Universal Segmented Portal Navigation Tabs */}
-        <nav className="hidden lg:flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/50 backdrop-blur-xs">
-          {SAPTIX_PORTAL_TABS.map((tab) => {
-            const isTabActive =
-              currentHost.includes(tab.id) ||
-              (tab.id === "hub" && (currentHost === "saptix.tech" || currentHost === "www.saptix.tech"));
-            return (
-              <a
-                key={tab.id}
-                href={tab.href}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all duration-150 ${
-                  isTabActive
-                    ? "bg-background text-foreground shadow-xs font-semibold"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-                }`}
-              >
-                {tab.label}
-              </a>
-            );
-          })}
-        </nav>
-
-        {/* Right: Ecosystem Apps Dropdown, Theme Switcher & User Menu */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Ecosystem Apps Grid */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setAppsOpen(!appsOpen)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
-                appsOpen
-                  ? "bg-muted text-foreground border-border"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/70 border-transparent"
-              } cursor-pointer`}
-              title="All Saptix Ecosystem Apps"
-            >
-              <Layers className="size-3.5 text-primary" />
-              <span className="hidden sm:inline">Ecosystem</span>
-              <ChevronDown className="size-3 text-muted-foreground" />
-            </button>
-
-            {appsOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setAppsOpen(false)} />
-                <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-2xl p-3 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 duration-150">
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/60 px-1">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">
-                      Saptix Enterprise Suite
-                    </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-medium">
-                      21 Integrated Services
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5 max-h-[380px] overflow-y-auto pr-1">
-                    {SAPTIX_APPS.map((app) => (
-                      <a
-                        key={app.sub}
-                        href={app.url}
-                        className="flex items-start gap-2 p-2 rounded-xl hover:bg-accent/80 transition-colors group"
-                      >
-                        <span className="text-base shrink-0 p-1 rounded-lg bg-background border border-border/40 group-hover:scale-110 transition-transform">
-                          {app.icon}
-                        </span>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                            {app.name}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground line-clamp-1">
-                            {app.desc}
-                          </span>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Theme Palette Customizer */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setCustomizerOpen(!customizerOpen)}
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
-              title="Customize Color Theme"
-            >
-              <Palette className="size-4" />
-            </button>
-
-            {customizerOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setCustomizerOpen(false)} />
-                <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-2xl p-3.5 shadow-2xl z-50">
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono block mb-2">
-                    Theme Accent Color
-                  </span>
-                  <div className="grid grid-cols-5 gap-2">
-                    {Object.entries(COLOR_PRESETS).map(([key, preset]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => applyColor(key)}
-                        className={`size-8 rounded-xl border-2 transition-transform hover:scale-110 flex items-center justify-center cursor-pointer ${
-                          currentColor === key ? "border-primary scale-105 shadow-xs" : "border-border/60"
-                        }`}
-                        style={{ backgroundColor: preset.swatch }}
-                        title={preset.label}
-                      >
-                        {currentColor === key && <Check className="size-3.5 text-white stroke-[3]" />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Light/Dark Toggle */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
-            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            aria-label="Toggle Theme"
-          >
-            {isDark ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4 text-sky-600" />}
-          </button>
-
-          {/* User Profile & Single Sign-Out Menu */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex items-center gap-2 pl-2 pr-1.5 py-1 rounded-xl border border-border/70 hover:bg-muted/80 transition-all duration-150 cursor-pointer group"
-            >
-              <div className="size-7 rounded-lg bg-primary/20 text-primary font-bold text-xs flex items-center justify-center border border-primary/30">
-                {userInitials}
+            {/* Mobile Brand: Shown only on small viewports (< 768px) where sidebar is in drawer */}
+            <a href="https://saptix.tech" className="md:hidden flex items-center gap-2 group">
+              <div className="size-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center p-1 shadow-xs">
+                <LogoSvg className="size-full" />
               </div>
-              <ChevronDown className="size-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+              <span className="font-bold text-xs tracking-tight text-foreground truncate max-w-[110px]">
+                {appName}
+              </span>
+            </a>
+          </div>
+
+          {/* Center: Global Command & Search Bar (⌘K) */}
+          <div className="flex-1 max-w-xs sm:max-w-sm lg:max-w-md mx-1 sm:mx-3">
+            <button
+              type="button"
+              onClick={() => setCommandOpen(true)}
+              className="w-full h-8.5 px-2.5 sm:px-3 rounded-xl bg-muted/40 hover:bg-muted/70 border border-border/60 hover:border-border/90 text-xs text-muted-foreground flex items-center justify-between gap-2 transition-all duration-150 group shadow-2xs cursor-pointer active:scale-[0.99]"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <Search className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                <span className="truncate hidden sm:inline">Search apps, commands, or press...</span>
+                <span className="truncate sm:hidden">Search...</span>
+              </div>
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground/80 bg-background/80 rounded border border-border/60 shadow-2xs">
+                <span className="text-xs">⌘</span>K
+              </kbd>
+            </button>
+          </div>
+
+          {/* Right: Ecosystem Apps Dropdown, Segmented Tabs, Theme Switcher & User Menu */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Universal Segmented Portal Navigation Tabs (Wide Desktop only) */}
+            <nav className="hidden xl:flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/50 backdrop-blur-xs">
+              {SAPTIX_PORTAL_TABS.map((tab) => {
+                const isTabActive =
+                  currentHost.includes(tab.id) ||
+                  (tab.id === "hub" && (currentHost === "saptix.tech" || currentHost === "www.saptix.tech"));
+                return (
+                  <a
+                    key={tab.id}
+                    href={tab.href}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-150 ${
+                      isTabActive
+                        ? "bg-background text-foreground shadow-xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    }`}
+                  >
+                    {tab.label}
+                  </a>
+                );
+              })}
+            </nav>
+
+            {/* Ecosystem Apps Grid */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setAppsOpen(!appsOpen)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 border active:scale-[0.97] ${
+                  appsOpen
+                    ? "bg-muted text-foreground border-border shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/70 border-transparent"
+                } cursor-pointer`}
+                title="All Saptix Ecosystem Apps"
+              >
+                <Layers className="size-3.5 text-primary" />
+                <span className="hidden sm:inline">Ecosystem</span>
+                <ChevronDown className="size-3 text-muted-foreground" />
+              </button>
+
+              {appsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setAppsOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-2xl p-3 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/60 px-1">
+                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">
+                        Saptix Enterprise Suite
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-medium">
+                        21 Integrated Services
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 max-h-[380px] overflow-y-auto pr-1 scrollbar-thin">
+                      {SAPTIX_APPS.map((app) => (
+                        <a
+                          key={app.sub}
+                          href={app.url}
+                          className="flex items-start gap-2 p-2 rounded-xl hover:bg-accent/80 transition-colors group"
+                        >
+                          <span className="text-base shrink-0 p-1 rounded-lg bg-background border border-border/40 group-hover:scale-110 transition-transform">
+                            {app.icon}
+                          </span>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                              {app.name}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground truncate">
+                              {app.desc}
+                            </span>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Theme Color Customizer Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setCustomizerOpen(!customizerOpen)}
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150 cursor-pointer active:scale-[0.96]"
+                title="Customize OKLCH Accent Theme"
+              >
+                <Palette className="size-4 text-primary" />
+              </button>
+
+              {customizerOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setCustomizerOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-2xl p-3.5 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 duration-150">
+                    <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2.5 font-mono">
+                      Brand Accent Color
+                    </div>
+                    <div className="grid grid-cols-5 gap-2">
+                      {Object.entries(COLOR_PRESETS).map(([key, preset]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            applyColor(key);
+                            setCustomizerOpen(false);
+                          }}
+                          className="flex flex-col items-center gap-1 group cursor-pointer"
+                          title={preset.label}
+                        >
+                          <span
+                            className="size-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shadow-xs border border-white/20"
+                            style={{ backgroundColor: preset.swatch }}
+                          >
+                            {currentColor === key && (
+                              <Check className="size-3.5 text-white stroke-[3]" />
+                            )}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {preset.label.slice(0, 3)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Dark/Light Mode Toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150 cursor-pointer active:scale-[0.96]"
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {isDark ? <Sun className="size-4 text-amber-400" /> : <Moon className="size-4 text-indigo-400" />}
             </button>
 
-            {userMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-2xl p-2 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 duration-150">
-                  <div className="px-3 py-2 border-b border-border/60 mb-1">
-                    <span className="text-xs font-semibold text-foreground block truncate">{userName}</span>
-                    <span className="text-[11px] text-muted-foreground block truncate">{userEmail}</span>
-                    <span className="inline-block mt-1 text-[9px] font-mono font-medium px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                      Enterprise SSO Active
-                    </span>
-                  </div>
-                  <div className="space-y-0.5">
+            {/* User Profile & Single Sign-Out Menu */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 pl-1.5 pr-2 py-1 rounded-xl hover:bg-muted/80 transition-all duration-150 border border-border/40 hover:border-border cursor-pointer active:scale-[0.97]"
+              >
+                <div className="size-7 rounded-lg bg-gradient-to-tr from-primary to-primary/60 text-primary-foreground font-bold text-xs flex items-center justify-center shadow-xs">
+                  {userInitials}
+                </div>
+                <div className="hidden md:flex flex-col items-start text-left leading-tight">
+                  <span className="text-xs font-semibold text-foreground truncate max-w-[90px]">
+                    {userName}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    SSO
+                  </span>
+                </div>
+                <ChevronDown className="size-3 text-muted-foreground" />
+              </button>
+
+              {userMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-border/80 bg-popover/95 backdrop-blur-2xl p-2 shadow-2xl z-50 animate-in fade-in-50 zoom-in-95 duration-150">
+                    <div className="px-3 py-2 border-b border-border/60 mb-1">
+                      <div className="font-semibold text-xs text-foreground">{userName}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">{userEmail}</div>
+                      <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-emerald-500 font-mono bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                        <ShieldCheck className="size-3" />
+                        Cross-Stake Single Sign-On Active
+                      </div>
+                    </div>
+
                     <a
                       href="https://account.saptix.tech"
-                      className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-foreground rounded-lg hover:bg-muted transition-colors"
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-foreground hover:bg-muted/70 transition-colors"
                     >
                       <User className="size-3.5 text-muted-foreground" />
-                      <span>Account & Profile</span>
+                      Manage Account & Security
                     </a>
+
                     <a
-                      href="https://account.saptix.tech"
-                      className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-foreground rounded-lg hover:bg-muted transition-colors"
+                      href="https://auth.saptix.tech/health"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-foreground hover:bg-muted/70 transition-colors"
                     >
-                      <ShieldCheck className="size-3.5 text-muted-foreground" />
-                      <span>Security & API Keys</span>
+                      <div className="flex items-center gap-2">
+                        <Activity className="size-3.5 text-muted-foreground" />
+                        SSO Auth Gateway Health
+                      </div>
+                      <ExternalLink className="size-3 text-muted-foreground/60" />
                     </a>
+
+                    <div className="my-1 border-t border-border/60" />
+
+                    <button
+                      type="button"
+                      onClick={handleGlobalLogout}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 transition-colors cursor-pointer font-medium active:scale-[0.98]"
+                    >
+                      <LogOut className="size-3.5 text-rose-500" />
+                      Sign Out (Global Single Sign-Out)
+                    </button>
                   </div>
-                  <div className="my-1.5 h-px bg-border/60" />
-                  <button
-                    type="button"
-                    onClick={handleGlobalLogout}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-destructive cursor-pointer rounded-lg hover:bg-destructive/10 transition-colors text-left font-medium"
-                  >
-                    <LogOut className="size-3.5" />
-                    <span>Sign Out (Global SSO)</span>
-                  </button>
-                </div>
-              </>
-            )}
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* Standalone Enterprise Command Palette Modal */}
+      <GlobalCommandPalette
+        open={commandOpen}
+        onOpenChange={setCommandOpen}
+        onToggleTheme={toggleTheme}
+        onCycleColor={cycleColor}
+        onLogout={handleGlobalLogout}
+        appName={appName}
+      />
+    </>
   );
 }
-
-export default SaptixHeader;
