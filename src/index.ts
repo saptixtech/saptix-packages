@@ -132,3 +132,5 @@ export * from './profile';
 
 export * from './notifications/useSaptixNotifications';
 export * from './notifications/SaptixNotificationDropdown';
+
+export * from './billing/SaptixAiConsumptionTable';

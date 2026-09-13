@@ -46,6 +46,7 @@ export function SaptixHeader({
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllAsRead, dismiss } = useSaptixNotifications();
   const [currentColor, setCurrentColor] = useState("teal");
   const [currentHost, setCurrentHost] = useState("");
