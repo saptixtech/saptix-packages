@@ -350,9 +350,22 @@ export function SaptixHeader({
                   type="button"
                   onClick={() => {
                     if (typeof window !== "undefined") {
-                      localStorage.removeItem("saptix_token");
-                      localStorage.removeItem("access_token");
-                      window.location.href = "https://account.saptix.tech";
+                      try {
+                        localStorage.removeItem("saptix_token");
+                        localStorage.removeItem("saptix_user");
+                        localStorage.removeItem("saptix_session");
+                        localStorage.removeItem("saptix_sso_session");
+                        localStorage.removeItem("access_token");
+                        sessionStorage.clear();
+                      } catch (_) {}
+                      const expired = '=; Domain=.saptix.tech; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+                      document.cookie = 'saptix_token' + expired;
+                      document.cookie = 'saptix_session' + expired;
+                      document.cookie = 'saptix_sso_session' + expired;
+                      document.cookie = 'saptix_auth' + expired;
+                      document.cookie = 'token' + expired;
+                      const targetRedirect = window.location.origin + '/login?logged_out=1';
+                      window.location.href = 'https://auth.saptix.tech/api/auth/logout?redirect=' + encodeURIComponent(targetRedirect);
                     }
                   }}
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-destructive cursor-pointer rounded-lg hover:bg-destructive/10 transition-colors text-left"
